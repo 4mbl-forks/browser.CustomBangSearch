@@ -1,3 +1,5 @@
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-plusplus */
 /*
 * bob (the builder) .mjs
 *
@@ -23,6 +25,9 @@ import { execa } from 'execa';
 import { Listr } from 'listr2';
 import fs from 'fs-extra';
 import * as esbuild from 'esbuild';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const manifestShared = JSON.parse(fs.readFileSync('./manifest.shared.json', 'utf8'));
 const manifestChrome = JSON.parse(fs.readFileSync('./manifest.chrome.json', 'utf8'));
@@ -182,6 +187,32 @@ const tasks = new Listr([
     },
   },
   {
+    title: 'Write default settings',
+    task: async (ctx) => {
+      ctx.settingsPath = './src/lib/settings.default.json';
+      ctx.prevSettings = fs.readFileSync(ctx.settingsPath, 'utf8');
+
+      const fetchUntilSuccees = async (url, retryLimit = 5) => {
+        let resp;
+        let code;
+        let retries = 0;
+
+        while (code !== 200 && retries < retryLimit) {
+          resp = await fetch(url);
+          code = resp.status;
+          retries++;
+        }
+
+        return resp;
+      };
+
+      const response = await fetchUntilSuccees(process.env.BANG_URL);
+      const json = await response.json();
+
+      fs.writeFile(ctx.settingsPath, JSON.stringify(json, null, 2));
+    },
+  },
+  {
     title: 'Run esbuild',
     task: (ctx) => {
       const scriptPaths = ['./src/background/main.ts', './src/optionsui/options.tsx', './src/popup/popup.tsx'];
@@ -213,6 +244,12 @@ const tasks = new Listr([
         ...opts,
         ...additions,
       });
+    },
+  },
+  {
+    title: 'Reset default settings',
+    task: (ctx) => {
+      fs.writeFile(ctx.settingsPath, (ctx.prevSettings));
     },
   },
   {
