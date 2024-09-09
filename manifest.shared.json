@@ -1,13 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Custom Bang Search",
-  "version": "0.10.7",
+  "version": "0.10.8",
   "description": "Use custom DuckDuckGo-like bangs directly from the address bar",
   "icons": {
     "96": "images/icons/icon_96.png",
     "128": "images/icons/icon_128.png"
   },
-  "permissions": ["storage", "webRequest"],
+  "permissions": [
+    "storage",
+    "webRequest"
+  ],
   "host_permissions": [
     "*://www.google.com/*",
     "*://*.bing.com/*",
