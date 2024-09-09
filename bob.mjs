@@ -29,7 +29,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+if (!process.env.BANG_URL) {
+  throw new Error('BANG_URL environment variable not set');
+}
+
 const manifestShared = JSON.parse(fs.readFileSync('./manifest.shared.json', 'utf8'));
+// Inject BANG_URL permission into manifest.
+manifestShared.host_permissions.push(process.env.BANG_URL);
+
 const manifestChrome = JSON.parse(fs.readFileSync('./manifest.chrome.json', 'utf8'));
 const manifestFirefox = JSON.parse(fs.readFileSync('./manifest.firefox.json', 'utf8'));
 const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
