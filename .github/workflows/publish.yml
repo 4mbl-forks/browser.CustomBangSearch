@@ -2,11 +2,14 @@ name: Publish
 
 on:
   schedule:
-    - cron: '0 0 1 * *' # Monthly on the 1st at 00:00 UTC
+    - cron: '0 0 1 * *' # 1st of the month at 00:00 UTC
   workflow_dispatch:
 
 permissions:
   contents: write
+
+env:
+  NODE_VERSION: '22'
 
 jobs:
   build:
@@ -15,32 +18,42 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Configure Git
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Setup Git
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+
       - name: Bump version
         run: |
           npm version patch
-
           sudo apt-get install jq
           jq --arg key "version" --arg newVal "$(node -p "require('./package.json').version")" '.[$key] = $newVal' manifest.shared.json > tmp.json && mv tmp.json manifest.shared.json
+
       - name: Build
+        run: |
+          pnpm install
+          sudo apt-get install p7zip-full # 7zip
+          pnpm run build-chrome-release
         env:
           BANG_URL: ${{ secrets.BANG_URL }}
-        run: |
-          npm install
-          sudo apt-get install p7zip-full # 7zip
-          npm run build-chrome-release
+
       - name: Evaluate file path
         run: |
           VERSION=$(node -p "require('./package.json').version")
           GIT_SHORT_HASH=$(git rev-parse --short HEAD)
           echo "FILE_PATH=./custombangsearch-chrome-$VERSION-$GIT_SHORT_HASH.zip" >> $GITHUB_ENV
-      - name: Upload & release
+
+      - name: Upload and release
         uses: mnao305/chrome-extension-upload@v5.0.0
         with:
           file-path: ${{ env.FILE_PATH }}
@@ -51,8 +64,6 @@ jobs:
 
       - name: Commit
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
           git add .
           git commit -m "chore: bump version"
           git push
